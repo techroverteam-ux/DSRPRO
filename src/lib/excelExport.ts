@@ -15,6 +15,15 @@ interface ExcelExportOptions {
   isRTL?: boolean
 }
 
+// DSR Info brand gold color
+const BRAND_GOLD = 'D4AF37'
+const BRAND_GOLD_LIGHT = 'FDF6DC'
+const BRAND_GOLD_MID = 'F5E49C'
+const WHITE = 'FFFFFF'
+const DARK_TEXT = '1A1A2E'
+const GRAY_BORDER = 'E5E7EB'
+const ALT_ROW = 'FAFAF7'
+
 export const exportToExcel = ({
   filename,
   sheetName,
@@ -24,175 +33,177 @@ export const exportToExcel = ({
   isRTL = false
 }: ExcelExportOptions) => {
   const workbook = XLSX.utils.book_new()
-  
-  // Prepare headers
+
   const headers = columns.map(col => col.label)
-  
-  // Prepare data rows
-  const rows = data.map(item => 
-    columns.map(col => item[col.key] || '')
-  )
-  
-  // Create worksheet data
+  const rows = data.map(item => columns.map(col => item[col.key] ?? ''))
+
   const wsData = [
     ...(title ? [[title], []] : []),
     headers,
     ...rows
   ]
-  
+
   const worksheet = XLSX.utils.aoa_to_sheet(wsData)
-  
-  // Set column widths
-  const colWidths = columns.map(col => ({ wch: col.width || 20 }))
-  worksheet['!cols'] = colWidths
-  
-  // Set row heights
+
+  // Column widths
+  worksheet['!cols'] = columns.map(col => ({ wch: col.width || 20 }))
+
+  // Row heights
   const rowHeights: any[] = []
   if (title) {
-    rowHeights[0] = { hpt: 35 } // Title
-    rowHeights[1] = { hpt: 15 } // Empty spacer
-    rowHeights[2] = { hpt: 25 } // Header
+    rowHeights[0] = { hpt: 40 }
+    rowHeights[1] = { hpt: 8 }
+    rowHeights[2] = { hpt: 28 }
   } else {
-    rowHeights[0] = { hpt: 25 } // Header
+    rowHeights[0] = { hpt: 28 }
   }
-  
-  for (let r = 0; r < data.length; r++) {
-    rowHeights.push({ hpt: 22 }) // Data rows
-  }
+  for (let r = 0; r < data.length; r++) rowHeights.push({ hpt: 22 })
   worksheet['!rows'] = rowHeights
 
-  // Style the header row
-  const headerRowIndex = title ? 2 : 0
-  columns.forEach((_, colIndex) => {
-    const cellAddress = XLSX.utils.encode_cell({ r: headerRowIndex, c: colIndex })
-    if (!worksheet[cellAddress]) worksheet[cellAddress] = {}
-    worksheet[cellAddress].s = {
-      font: { bold: true, color: { rgb: 'FFFFFF' } },
-      fill: { fgColor: { rgb: '4F46E5' } }, // Professional Indigo header
-      border: {
-        top: { style: 'thin', color: { rgb: 'CCCCCC' } },
-        bottom: { style: 'medium', color: { rgb: '4F46E5' } },
-        left: { style: 'thin', color: { rgb: 'CCCCCC' } },
-        right: { style: 'thin', color: { rgb: 'CCCCCC' } }
-      },
-      alignment: { horizontal: 'center', vertical: 'center', wrapText: true }
-    }
-  })
-  
-  // Style title if exists
+  // Title row — gold background
   if (title) {
     const titleCell = worksheet['A1']
     if (titleCell) {
       titleCell.s = {
-        font: { bold: true, sz: 16, color: { rgb: '111827' } },
-        alignment: { horizontal: 'center', vertical: 'center' }
+        font: { bold: true, sz: 15, color: { rgb: DARK_TEXT } },
+        fill: { fgColor: { rgb: BRAND_GOLD } },
+        alignment: { horizontal: 'center', vertical: 'center' },
+        border: {
+          bottom: { style: 'medium', color: { rgb: BRAND_GOLD } },
+        }
       }
     }
     worksheet['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: columns.length - 1 } }]
   }
-  
-  // Add borders and center text to all data cells
+
+  // Header row — gold background, dark text
+  const headerRowIndex = title ? 2 : 0
+  columns.forEach((_, colIndex) => {
+    const cellAddress = XLSX.utils.encode_cell({ r: headerRowIndex, c: colIndex })
+    if (!worksheet[cellAddress]) worksheet[cellAddress] = { v: headers[colIndex] }
+    worksheet[cellAddress].s = {
+      font: { bold: true, sz: 10, color: { rgb: DARK_TEXT } },
+      fill: { fgColor: { rgb: BRAND_GOLD } },
+      border: {
+        top: { style: 'medium', color: { rgb: BRAND_GOLD } },
+        bottom: { style: 'medium', color: { rgb: BRAND_GOLD } },
+        left: { style: 'thin', color: { rgb: BRAND_GOLD_MID } },
+        right: { style: 'thin', color: { rgb: BRAND_GOLD_MID } },
+      },
+      alignment: { horizontal: 'center', vertical: 'center', wrapText: true }
+    }
+  })
+
+  // Data rows
   const dataStartRow = title ? 3 : 1
   for (let row = dataStartRow; row < dataStartRow + data.length; row++) {
+    const isAlt = (row - dataStartRow) % 2 === 1
     columns.forEach((_, colIndex) => {
       const cellAddress = XLSX.utils.encode_cell({ r: row, c: colIndex })
       if (!worksheet[cellAddress]) worksheet[cellAddress] = { v: '' }
-      
-      const isAlternate = (row - dataStartRow) % 2 === 1
       worksheet[cellAddress].s = {
-        fill: isAlternate ? { fgColor: { rgb: 'F9FAFB' } } : { fgColor: { rgb: 'FFFFFF' } },
+        fill: { fgColor: { rgb: isAlt ? ALT_ROW : WHITE } },
         border: {
-          top: { style: 'thin', color: { rgb: 'E5E7EB' } },
-          bottom: { style: 'thin', color: { rgb: 'E5E7EB' } },
-          left: { style: 'thin', color: { rgb: 'E5E7EB' } },
-          right: { style: 'thin', color: { rgb: 'E5E7EB' } }
+          top: { style: 'thin', color: { rgb: GRAY_BORDER } },
+          bottom: { style: 'thin', color: { rgb: GRAY_BORDER } },
+          left: { style: 'thin', color: { rgb: GRAY_BORDER } },
+          right: { style: 'thin', color: { rgb: GRAY_BORDER } },
         },
-        alignment: { 
-          horizontal: 'center',
-          vertical: 'center',
-          wrapText: true
-        }
+        alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
+        font: { sz: 10 }
       }
     })
   }
-  if (isRTL) {
-    worksheet['!dir'] = 'rtl'
-  }
-  
+
+  if (isRTL) worksheet['!dir'] = 'rtl'
+
   XLSX.utils.book_append_sheet(workbook, worksheet, sheetName)
-  
-  // Generate filename with timestamp
-  const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-')
-  const finalFilename = `${filename}_${timestamp}.xlsx`
-  
-  XLSX.writeFile(workbook, finalFilename)
+
+  const timestamp = new Date().toISOString().slice(0, 10)
+  XLSX.writeFile(workbook, `${filename}_${timestamp}.xlsx`)
 }
 
-// Predefined column configurations for different reports
+// Column configurations
 export const reportColumns = {
   payments: (t: (key: string) => string) => [
-    { key: 'paymentNumber', label: t('paymentId'), width: 22 },
+    { key: 'paymentNumber', label: 'Batch ID', width: 22 },
     { key: 'date', label: t('date'), width: 18 },
     { key: 'agentName', label: t('agent'), width: 25 },
     { key: 'paymentMethod', label: t('paymentMethod'), width: 18 },
     { key: 'amount', label: t('amount'), width: 20 },
     { key: 'description', label: t('description'), width: 40 }
   ],
-  
+
   transactions: (t: (key: string) => string) => [
-    { key: 'transactionId', label: t('batchId'), width: 25 },
+    { key: 'transactionId', label: 'Batch ID', width: 25 },
     { key: 'date', label: t('date'), width: 18 },
-    { key: 'clientName', label: t('client'), width: 25 },
+    { key: 'clientName', label: 'Client', width: 25 },
     { key: 'amount', label: t('amount'), width: 20 },
-    { key: 'commission', label: t('commission'), width: 20 },
+    { key: 'commission', label: 'Commission', width: 20 },
     { key: 'status', label: t('status'), width: 15 }
   ],
-  
+
   receiptsAgent: (t: (key: string) => string) => [
     { key: 'receiptNumber', label: 'Receipt No.', width: 22 },
     { key: 'date', label: t('date'), width: 18 },
-    { key: 'posMachineInfo', label: 'POS Machine', width: 25 },
+    { key: 'posMachineInfo', label: 'POS Machine', width: 28 },
     { key: 'amount', label: t('amount'), width: 20 },
     { key: 'description', label: t('description'), width: 40 }
   ],
 
   receiptsAdmin: (t: (key: string) => string) => [
-    { key: 'receiptNumber', label: 'Receipt No.', width: 22 },
-    { key: 'date', label: t('date'), width: 18 },
-    { key: 'posMachineInfo', label: 'POS Machine', width: 25 },
-    { key: 'margin', label: 'Margin', width: 20 },
-    { key: 'bankCharges', label: 'Bank Charges', width: 20 },
-    { key: 'vat', label: 'VAT', width: 18 },
-    { key: 'amount', label: t('amount'), width: 20 },
-    { key: 'createdBy', label: 'Created By', width: 25 },
-    { key: 'updatedBy', label: 'Updated By', width: 25 },
-    { key: 'createdAtDate', label: 'Created Date', width: 22 },
-    { key: 'updatedAtDate', label: 'Updated Date', width: 22 },
-    { key: 'description', label: t('description'), width: 40 }
+    { key: 'batchId', label: 'Batch ID', width: 22 },
+    { key: 'posMachineInfo', label: 'POS Machine', width: 28 },
+    { key: 'agent', label: 'Agent', width: 25 },
+    { key: 'date', label: 'Date', width: 18 },
+    { key: 'posReceiptAmount', label: 'POS/Receipt Amount', width: 22 },
+    { key: 'marginPct', label: 'Margin %', width: 14 },
+    { key: 'marginAmt', label: 'Margin Amount', width: 20 },
+    { key: 'bankPct', label: 'Bank Charges %', width: 16 },
+    { key: 'bankAmt', label: 'Bank Charges Amt', width: 20 },
+    { key: 'vatPct', label: 'VAT %', width: 12 },
+    { key: 'vatAmt', label: 'VAT Amount', width: 18 },
+    { key: 'netReceived', label: 'Net Received', width: 20 },
+    { key: 'toPay', label: 'To Pay Amount', width: 20 },
+    { key: 'marginCol', label: 'Margin', width: 18 },
+    { key: 'paid', label: 'Paid', width: 18 },
+    { key: 'balance', label: 'Balance', width: 18 },
+    { key: 'createdBy', label: 'Created By', width: 22 },
+    { key: 'updatedBy', label: 'Updated By', width: 22 },
+    { key: 'description', label: 'Description', width: 40 }
   ],
 
   reportsAgent: (t: (key: string) => string) => [
-    { key: 'transactionId', label: 'Batch ID', width: 25 },
-    { key: 'date', label: t('date'), width: 18 },
+    { key: 'batchId', label: 'Batch ID', width: 22 },
+    { key: 'posMachineInfo', label: 'POS Machine', width: 28 },
     { key: 'agent', label: 'Agent', width: 25 },
-    { key: 'posMachineInfo', label: 'POS Machine', width: 25 },
-    { key: 'amount', label: t('amount'), width: 20 },
-    { key: 'description', label: t('description'), width: 40 }
+    { key: 'date', label: 'Date', width: 18 },
+    { key: 'posReceiptAmount', label: 'POS/Receipt Amount', width: 22 },
+    { key: 'netReceived', label: 'Net Received', width: 20 },
+    { key: 'paid', label: 'Paid', width: 18 },
+    { key: 'balance', label: 'Balance', width: 18 },
+    { key: 'description', label: 'Description', width: 40 }
   ],
 
   reportsAdmin: (t: (key: string) => string) => [
-    { key: 'transactionId', label: 'Batch ID', width: 25 },
-    { key: 'date', label: t('date'), width: 18 },
+    { key: 'batchId', label: 'Batch ID', width: 22 },
+    { key: 'posMachineInfo', label: 'POS Machine', width: 28 },
     { key: 'agent', label: 'Agent', width: 25 },
-    { key: 'posMachineInfo', label: 'POS Machine', width: 25 },
-    { key: 'margin', label: 'Margin', width: 20 },
-    { key: 'bankCharges', label: 'Bank Charges', width: 20 },
-    { key: 'vat', label: 'VAT', width: 18 },
-    { key: 'amount', label: t('amount'), width: 20 },
-    { key: 'createdBy', label: 'Created By', width: 25 },
-    { key: 'updatedBy', label: 'Updated By', width: 25 },
-    { key: 'createdAtDate', label: 'Created Date', width: 22 },
-    { key: 'updatedAtDate', label: 'Updated Date', width: 22 },
-    { key: 'description', label: t('description'), width: 40 }
+    { key: 'date', label: 'Date', width: 18 },
+    { key: 'posReceiptAmount', label: 'POS/Receipt Amount', width: 22 },
+    { key: 'marginPct', label: 'Margin %', width: 14 },
+    { key: 'marginAmt', label: 'Margin Amount', width: 20 },
+    { key: 'bankPct', label: 'Bank Charges %', width: 16 },
+    { key: 'bankAmt', label: 'Bank Charges Amt', width: 20 },
+    { key: 'vatPct', label: 'VAT %', width: 12 },
+    { key: 'vatAmt', label: 'VAT Amount', width: 18 },
+    { key: 'netReceived', label: 'Net Received', width: 20 },
+    { key: 'toPay', label: 'To Pay Amount', width: 20 },
+    { key: 'marginCol', label: 'Margin', width: 18 },
+    { key: 'paid', label: 'Paid', width: 18 },
+    { key: 'balance', label: 'Balance', width: 18 },
+    { key: 'createdBy', label: 'Created By', width: 22 },
+    { key: 'updatedBy', label: 'Updated By', width: 22 },
+    { key: 'description', label: 'Description', width: 40 }
   ]
 }
